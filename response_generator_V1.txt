@@ -1,0 +1,47 @@
+def generateResponse(top_results, user_prompt, set_similarity_threshold, llm_model):
+  """
+  Generates the response for the asked question made 
+  by combining `top_results` & `user_prompt`
+  """
+
+  similarity_cap = []
+
+  # Collect similar content and scores
+  formatted_chunks = []
+  for idx, result in enumerate(top_results, start=1):
+      page_number, content, similarity = result
+      similarity_cap.append(similarity)
+      formatted_chunks.append(f"{idx}. {content.strip()}")
+
+  # Compute average similarity
+  # avg_similarity = sum(similarity_cap) / len(similarity_cap)
+  max_similarity = max(similarity_cap)
+  # print(max_similarity)
+  # print(similarity_cap)
+
+  # If too low, flag as out of context
+  if max_similarity < set_similarity_threshold:
+      print(f"❌ Out of context. similarity: {max_similarity:.4f} (Threshold: {set_similarity_threshold})")
+      return "The question appears to be out of context based on the document content."
+
+  # Otherwise, format the final prompt
+  joined_chunks = "\n\n".join(formatted_chunks)
+  final_prompt = f"""You are an assistant. Use the following context from a PDF document to answer the user's question.
+                  === CONTEXT ===
+                  {joined_chunks}
+
+                  === QUESTION ===
+                  {user_prompt}
+                  Provide a helpful and accurate answer based on the above context.
+                  """
+  
+  model = llm_model
+  message = [
+     {
+        'role': 'user',
+        'content': final_prompt
+     }
+  ]
+
+  response: ChatResponse = chat(model=model, messages=message)
+  return response['message']['content']
